@@ -55,12 +55,23 @@ void CConsole::close()
 
 #include <termios.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include <sys/select.h>
+
+static struct termios orig_term;
+
+void undoRawMode() {
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_term);
+  fprintf(stderr, "restoring orig term settings\n");
+}
 
 CConsole::CConsole() :
 m_termios()
 {
+    tcgetattr(STDIN_FILENO, &orig_term);
+    ::atexit(undoRawMode);
+
 	::memset(&m_termios, 0x00U, sizeof(termios));
 }
 
@@ -99,7 +110,7 @@ int CConsole::getChar()
 
 	timeval tv;
 	tv.tv_sec  = 0;
-	tv.tv_usec = 0;               
+	tv.tv_usec = 5000;
 
 	int n = ::select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
 	if (n <= 0) {
