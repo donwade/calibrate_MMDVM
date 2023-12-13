@@ -458,37 +458,59 @@ int CSerialController::read(unsigned char* buffer, unsigned int length)
 		FD_ZERO(&fds);
 		FD_SET(m_fd, &fds);
 		int n;
-		if (offset == 0U) {
 			struct timeval tv;
-			tv.tv_sec  = 0;
-			tv.tv_usec = 0;
-			n = ::select(m_fd + 1, &fds, NULL, NULL, &tv);
-			if (n == 0)
-				return 0;
-		} else {
-			n = ::select(m_fd + 1, &fds, NULL, NULL, NULL);
-		}
+            if (offset == 0U)
+            {
+                tv.tv_sec  = 2;
+                tv.tv_usec = 0;
+                // do non-blocking read while waiting FIRST BYTE of reading a packet.
+                n = ::select(m_fd + 1, &fds, NULL, NULL, &tv);
 
-		if (n < 0) {
-			::fprintf(stderr, "Error from select(), errno=%d" EOL, errno);
-			return -1;
-		}
+                if (n == 0)
+                {
+                	// no bytes were in the queue. Timeout not possible on tv setting
+                	fprintf(stderr, "no response for 2 seconds waiting for FIRST byte" EOL);
+                    return 0;
+                }
+            }
+            else
+            {
+                tv.tv_sec  = 1;		// longest wait 1 second.
+                tv.tv_usec = 0;
+            	// packet byte 2 onwards. Was wait forever, but i'm reporting slow/missing bytes.
+                n = ::select(m_fd + 1, &fds, NULL, NULL, &tv);
+            }
 
-		if (n > 0) {
-			ssize_t len = ::read(m_fd, buffer + offset, length - offset);
-			if (len < 0) {
-				if (errno != EAGAIN) {
-					::fprintf(stderr, "Error from read(), errno=%d" EOL, errno);
-					return -1;
-				}
-			}
+            if (n < 0)
+            {
+                ::fprintf(stderr, "Error from select(), errno=%d" EOL, errno);
+                return -1;
+            }
 
-			if (len > 0)
-				offset += len;
-		}
-	}
-	}
-	return length;
+            else if (n > 0)
+            {
+            	// have bytes
+                ssize_t len = ::read(m_fd, buffer + offset, length - offset);
+                if (len < 0)
+                {
+                    if (errno != EAGAIN)
+                    {
+                        ::fprintf(stderr, "Error from read(), errno=%d" EOL, errno);
+                        return -1;
+                    }
+                }
+
+                if (len > 0)
+                    offset += len;
+            }
+            else
+            {
+            	::fprintf(stderr, "TIMEOUT: requested %d bytes only got %d bytes" EOL, length, offset);
+            }
+
+        }
+    }
+    return length;
 }
 
 bool CSerialController::canWrite(){
