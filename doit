@@ -1,0 +1,60 @@
+#!/bin/bash
+reset
+set -x
+make clean &>/dev/null
+NAME=`uname -m`
+unset CFLAGS
+MAKE_TARGET=Makefile
+set -e
+
+TGT_ARCH=arm-linux-gnueabihf
+if [ "$1" == "--Debug" ]; then
+    CFLAGS='-O0 -ggdb '
+    LDFLAGS="-Wl,--verbose"
+fi
+
+
+if [ "$NAME" == "x86_64" ]; then
+
+    SYSROOT=/home/dwade/remote.root
+
+    [[ -d ${SYSROOT} ]] || mkdir -p ${SYSROOT} 
+    
+    if [ ! -d ${SYSROOT}/lib ]; then
+        echo "need to mount pi root"
+        sudo mount whitebox:/ ${SYSROOT}
+    fi
+
+    export PATH=/home/dwade/x-tools/arm-linux-gnueabihf/bin:$PATH
+
+    export  CC=arm-linux-gnueabihf-g++ 
+    export CXX=arm-linux-gnueabihf-g++ 
+    export  LD=arm-linux-gnueabihf-g++
+
+    export CFLAGS=" $CFLAGS --sysroot=${SYSROOT} "
+    
+    export CXXFLAGS="$CFLAGS"
+    
+    LDFLAGS+=" -L${SYSROOT}/usr/lib/gcc/arm-linux-gnueabihf/10 -L${SYSROOT}/usr/lib  -L${SYSROOT}/usr/lib/$TGT_ARCH -Wl,--sysroot=${SYSROOT} --sysroot=${SYSROOT} "
+    export LDFLAGS 
+
+    make SHELL='/bin/bash -x' CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" CC=$CC LD=$LD VERBOSE=1 -f $MAKE_TARGET   all | tee make.log
+    ret=${PIPESTATUS[0]}
+    if [ $ret != 0 ]; then
+        RED "\nmake failed \n"
+        exit
+    fi
+    xcp-whitebox .
+    rm *.o || true
+
+    GREEN "\n make passed local drive cleaned up\n"
+else
+    rm *.o || true
+
+    make -f $MAKE_TARGET CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" SHELL='/bin/bash -x' -j3 | tee make.log
+    ret=${PIPESTATUS[0]}
+    if [ $ret != 0 ]; then
+        RED "\nmake failed"
+    fi
+fi
+
