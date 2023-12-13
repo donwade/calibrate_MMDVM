@@ -128,7 +128,7 @@ private:
 	bool setTXInvert();
 	bool setRXInvert();
 	bool setPTTInvert();
-	bool setDebug();
+	bool setDebug(char what);
 	bool setFreq(int incr);
 	bool setStepFreq();
 	bool setPower(int incr);

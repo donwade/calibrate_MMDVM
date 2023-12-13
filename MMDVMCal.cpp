@@ -217,7 +217,7 @@ void CMMDVMCal::loop_MMDVM()
 				break;
 			case 'W':
 			case 'w':
-				setDebug();
+				setDebug(c);
 				break;
 			case 'T':
 				setTXLevel(1);
@@ -412,7 +412,7 @@ void CMMDVMCal::loop_MMDVM_HS()
 				break;
 			case 'W':
 			case 'w':
-				setDebug();
+				setDebug(c);
 				break;
 			case 'C':
 			case 'c':
@@ -515,7 +515,7 @@ void CMMDVMCal::loop_MMDVM_HS()
 			counter = 0U;
 		}
 
-		counter++; 
+		counter++;
 	}
 }
 
@@ -801,7 +801,7 @@ bool CMMDVMCal::writeConfig2(float txlevel, bool debug)
 	buffer[32U] = 0U;
 	buffer[33U] = 0U;
 	buffer[34U] = 0U;
-	
+
 	buffer[35U] = 0x00U;
 	buffer[36U] = 0x00U;
 	buffer[37U] = 0x00U;
@@ -932,9 +932,9 @@ bool CMMDVMCal::setPTTInvert()
 	}
 }
 
-bool CMMDVMCal::setDebug()
+bool CMMDVMCal::setDebug(char c)
 {
-	m_debug = !m_debug;
+	m_debug = (c == 'w') ? 0 : 1;
 
 	::fprintf(stdout, "Modem debug: %s" EOL, m_debug ? "On" : "Off");
 
@@ -1508,7 +1508,7 @@ bool CMMDVMCal::setEnterFreq()
 	if (std::fgets(buff, 256, stdin) != NULL ) {
 
 		unsigned long int freq = std::strtoul(buff, NULL, 10);
-	
+
 		if (freq >= 100000000U && freq <= 999999999U) {
 			m_frequency = (unsigned int)freq;
 			m_startfrequency = m_frequency;
@@ -1654,7 +1654,7 @@ bool CMMDVMCal::setStepFreq()
 	if (std::fgets(buff, 256, stdin) != NULL ) {
 
 		unsigned long int freq = std::strtoul(buff, NULL, 10);
-	
+
 		if (freq >= 10U && freq <= 25000U) {
 			m_step = (unsigned int)freq;
 			::fprintf(stdout, "New frequency step: %u Hz" EOL, m_step);
@@ -1675,6 +1675,11 @@ bool CMMDVMCal::setPower(int incr)
 	if (incr > 0 && m_power < 100.0F) {
 		m_power += 1.0F;
 		::fprintf(stdout, "RF power: %.1f%%" EOL, m_power);
+
+		// setting power is done in the setting of the frequency
+		// stupid cow interface. via MMDVM_SET_FREQ cmd.
+		// suck me off.
+
 		setFrequency();
 
 		switch (m_version) {
@@ -1926,6 +1931,7 @@ bool CMMDVMCal::setFrequency()
 	buffer[10U] = (m_frequency >> 16) & 0xFFU;
 	buffer[11U] = (m_frequency >> 24) & 0xFFU;
 
+	// in firmware its at [9], but 3 is subtracted so it is 12
 	buffer[12U]  = (unsigned char)(m_power * 2.55F + 0.5F);
 
 	int ret = m_serial.write(buffer, 13U);
