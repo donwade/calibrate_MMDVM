@@ -1,0 +1,26 @@
+#!/bin/bash
+STTY=$(stty --save)
+start_time=`date +%s`
+trap trap_function 0 1 2 15 9;
+
+
+function trap_function()
+{
+    trap - 0 1 2 15 9;
+
+    stop_time=`date +%s`
+    exec_time=$(date -u --date @$(($stop_time - $start_time)) +%H:%M:%S)
+    echo
+    echo "elapsed time $exec_time"       
+    echo 
+    set -x
+    stty $STTY
+         
+    exit
+}
+
+
+./MMDVMCal 460800  /dev/ttyAMA0
+#./MMDVMCal 230400  /dev/ttyAMA0
+file MMDVMCal
+
