@@ -1,7 +1,7 @@
 all:	MMDVMCal
 
-LD  = c++
-CXX = c++
+LD  ?= c++
+CXX ?= c++
 
 CXXFLAGS = -O2 -Wall -std=c++0x
 
@@ -51,4 +51,4 @@ install:
 		install -m 755 MMDVMCal /usr/local/bin/
 
 clean:
-		rm -f *.o *.bak *~ MMDVMCal
+		rm -f *.o *.bak  MMDVMCal
