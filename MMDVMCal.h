@@ -27,10 +27,12 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <stdint.h>
 
 enum RESP_TYPE_MMDVM {
 	RTM_OK,
 	RTM_TIMEOUT,
+	RTM_UNEXPECTED,
 	RTM_ERROR
 };
 
@@ -68,6 +70,7 @@ enum MMDVM_STATE {
   STATE_FMCAL30K  = 107,
   STATE_M17CAL    = 108
 };
+typedef enum { down, stay, up } knob;
 
 class CMMDVMCal {
 public:
@@ -116,6 +119,7 @@ private:
 	void displayHelp_MMDVM_HS();
 	void loop_MMDVM();
 	void loop_MMDVM_HS();
+    bool send_msg(uint8_t cmd, knob  upDownRpt);
 	bool setTransmit();
 	bool setTXLevel(int incr);
 	bool setRXLevel(int incr);
@@ -151,6 +155,8 @@ private:
 
 	bool initModem();
 	void displayModem(const unsigned char* buffer, unsigned int length);
+    void displayDebug(const unsigned char* buffer, unsigned int length);
+    RESP_TYPE_MMDVM WFR(const char *msg);   // wait for response
 	bool writeConfig1(float txlevel, bool debug);
 	bool writeConfig2(float txlevel, bool debug);
 	void sleep(unsigned int ms);
@@ -160,4 +166,28 @@ private:
 	RESP_TYPE_MMDVM getResponse();
 };
 
+#define _RESET   "\033[0m"
+#define _BLACK   "\033[30m"      /* Black */
+#define _RED     "\033[31m"      /* Red */
+#define _GREEN   "\033[32m"      /* Green */
+#define _YELLOW  "\033[33m"      /* Yellow */
+#define _BLUE    "\033[34m"      /* Blue */
+#define _MAGENTA "\033[35m"      /* Magenta */
+#define _CYAN    "\033[36m"      /* Cyan */
+#define _WHITE   "\033[37m"      /* White */
+#define _BOLDBLACK   "\033[1m\033[30m"      /* Bold Black */
+#define _BOLDRED     "\033[1m\033[31m"      /* Bold Red */
+#define _BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
+#define _BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
+#define _BOLDBLUE    "\033[1m\033[34m"      /* Bold Blue */
+#define _BOLDMAGENTA "\033[1m\033[35m"      /* Bold Magenta */
+#define _BOLDCYAN    "\033[1m\033[36m"      /* Bold Cyan */
+#define _BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
+#define _BLINK_RED     "\033[5m\033[31m"      /* Red */
+#define _BLINK_GREEN   "\033[5m\033[32m"      /* Green */
+#define _BLINK_YELLOW  "\033[5m\033[33m"      /* Yellow */
+#define _BLINK_BLUE    "\033[5m\033[34m"      /* Blue */
+#define _BLINK_MAGENTA "\033[5m\033[35m"      /* Magenta */
+#define _BLINK_CYAN    "\033[5m\033[36m"      /* Cyan */
+#define _BLINK_WHITE   "\033[5m\033[37m"      /* White */
 #endif

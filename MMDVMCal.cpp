@@ -22,6 +22,8 @@
 #include "Version.h"
 
 #include <cstdio>
+#include <cassert>
+#include <stdint.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #define EOL	"\n"
@@ -206,7 +208,8 @@ void CMMDVMCal::loop_MMDVM()
 	unsigned int counter = 0U;
 	bool end = false;
 	while (!end) {
-		int c = m_console.getChar();
+		int c;
+		while ( (c = m_console.getChar()) < 0) c++;  // do nothing.
 		switch (c) {
 			case 'H':
 			case 'h':
@@ -324,7 +327,7 @@ void CMMDVMCal::loop_MMDVM()
 				break;
 	    	}
 
-  	    	RESP_TYPE_MMDVM resp = getResponse();
+  	   	RESP_TYPE_MMDVM resp = WFR(__FUNCTION__);
 
 		if (resp == RTM_OK)
 			displayModem(m_buffer, m_length);
@@ -400,7 +403,8 @@ void CMMDVMCal::loop_MMDVM_HS()
 
 	bool end = false;
 	while (!end) {
-		int c = m_console.getChar();
+		int c;
+     	while ( (c = m_console.getChar()) < 0) c++;  // do nothing.
 		switch (c) {
 			case 'H':
 			case 'h':
@@ -497,7 +501,7 @@ void CMMDVMCal::loop_MMDVM_HS()
 				break;
 		}
 
-		RESP_TYPE_MMDVM resp = getResponse();
+		RESP_TYPE_MMDVM resp = WFR(__FUNCTION__);
 
 		if (resp == RTM_OK)
 			displayModem(m_buffer, m_length);
@@ -679,10 +683,12 @@ bool CMMDVMCal::writeConfig1(float txlevel, bool debug)
 		buffer[4U] |= 0x10U;
 	if (m_pocsagEnabled)
 		buffer[4U] |= 0x20U;
+#if 0  // dwade out of align with firmware
 	if (m_fmEnabled)
 		buffer[4U] |= 0x40U;
 	if (m_ax25Enabled)
 		buffer[4U] |= 0x80U;
+#endif
 
 	buffer[5U] = 0U;
 	buffer[6U] = m_mode;
@@ -711,28 +717,12 @@ bool CMMDVMCal::writeConfig1(float txlevel, bool debug)
 	if (ret <= 0)
 		return false;
 
-	unsigned int count = 0U;
-	RESP_TYPE_MMDVM resp;
-	do {
-		sleep(10U);
+	RESP_TYPE_MMDVM resp = WFR(__FUNCTION__);
 
-		resp = getResponse();
-		if (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK) {
-			count++;
-			if (count >= MAX_RESPONSES) {
-				::fprintf(stdout, "The MMDVM is not responding to the SET_CONFIG command" EOL);
-				return false;
+	return resp == RTM_OK;
 			}
-		}
-	} while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
 
-	if (resp == RTM_OK && m_buffer[2U] == MMDVM_NAK) {
-		::fprintf(stdout, "Received a NAK to the SET_CONFIG command from the modem: %u" EOL, m_buffer[4U]);
-		return false;
-	}
 
-	return true;
-}
 bool CMMDVMCal::writeConfig2(float txlevel, bool debug)
 {
 	unsigned char buffer[50U];
@@ -822,27 +812,76 @@ bool CMMDVMCal::writeConfig2(float txlevel, bool debug)
 	if (ret <= 0)
 		return false;
 
-	unsigned int count = 0U;
+	return WFR(__FUNCTION__) == RTM_OK;
+}
+RESP_TYPE_MMDVM CMMDVMCal::WFR(const char *msg)  // wait for response
+{
+	unsigned int count;
+	fprintf(stderr, "WFR called from %s" EOL, msg);
+again:
+	count = 0U;
 	RESP_TYPE_MMDVM resp;
 	do {
 		sleep(10U);
 
 		resp = getResponse();
-		if (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK) {
+		switch (resp)
+		{
+			case RTM_OK:
+				switch (m_buffer[2U])
+				{
+					case MMDVM_ACK:
+	 				case MMDVM_NAK:
+					goto proc;
+					case MMDVM_DEBUG1:
+					case MMDVM_DEBUG2:
+					case MMDVM_DEBUG3:
+					case MMDVM_DEBUG4:
+					case MMDVM_DEBUG5:
+						displayDebug (m_buffer, m_length);
+						count = 0;
+					goto again;
+					default:
 			count++;
-			if (count >= MAX_RESPONSES) {
-				::fprintf(stdout, "The MMDVM is not responding to the SET_CONFIG command" EOL);
-				return false;
+						if (count >= MAX_RESPONSES)
+						{
+							::fprintf(stdout, "*** The MMDVM is not responding to the %s command" EOL, msg);
+							return RTM_TIMEOUT;
+						}
+					break;
 			}
+			break;
+			case RTM_UNEXPECTED:
+				::fprintf(stderr, "looking for start of packet, did not find it, found something else\n");
+				count = 0;
+				continue;
+				return RTM_UNEXPECTED;
+			case RTM_TIMEOUT:
+				::fprintf(stderr, "resp = RTM_TIMEOUT, resp =%d count=%d" EOL, resp, count);
+				return RTM_TIMEOUT;
+			break;
+			case RTM_ERROR:
+				::fprintf(stderr, "resp = RTM_ERROR, resp =%d count=%d" EOL, resp, count);
+				count++;
+			break;
+			default:
+				::fprintf(stderr, "resp = RTM_WTF!!!!, HALT resp =%d count=%d" EOL, resp, count);
+				count++;
+			break;
 		}
-	} while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
+ 	}while(true); ////// while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
 
-	if (resp == RTM_OK && m_buffer[2U] == MMDVM_NAK) {
-		::fprintf(stdout, "Received a NAK to the SET_CONFIG command from the modem: %u" EOL, m_buffer[4U]);
-		return false;
+proc:
+	if (m_buffer[2U] == MMDVM_NAK) {
+		::fprintf(stdout, "*** Received a NAK to the %s command FROM the modem: %u" EOL, msg, (m_buffer[5] << 8) + m_buffer[4U]);
+		::fprintf(stdout, "*** Received a NAK to the %s command FROM the modem: %X %X" EOL, msg, m_buffer[5], m_buffer[4U]);
+		return RTM_ERROR;
+	}
+	else
+	{
 	}
 
-	return true;
+	return RTM_OK;
 }
 
 bool CMMDVMCal::setRXInvert()
@@ -1773,6 +1812,31 @@ bool CMMDVMCal::setTransmit()
 		::fprintf(stdout, "Set transmitter OFF" EOL);
 
 	return true;
+}
+
+void CMMDVMCal::displayDebug(const unsigned char *buffer, unsigned int length)
+{
+	if (buffer[2U] == MMDVM_DEBUG1) {
+		::fprintf(stdout, "Debug[%2d]: %.*s" EOL, length, length - 3U, buffer + 3U);
+	} else if (buffer[2U] == MMDVM_DEBUG2) {
+		short val1 = (buffer[length - 2U] << 8) | buffer[length - 1U];
+		::fprintf(stdout, "Debug[%2d]: %.*s %d" EOL, length, length - 5U, buffer + 3U, val1);
+	} else if (buffer[2U] == MMDVM_DEBUG3) {
+		short val1 = (buffer[length - 4U] << 8) | buffer[length - 3U];
+		short val2 = (buffer[length - 2U] << 8) | buffer[length - 1U];
+		::fprintf(stdout, "Debug[%2d]: %.*s %d %d" EOL, length, length - 7U, buffer + 3U, val1, val2);
+	} else if (buffer[2U] == MMDVM_DEBUG4) {
+		short val1 = (buffer[length - 6U] << 8) | buffer[length - 5U];
+		short val2 = (buffer[length - 4U] << 8) | buffer[length - 3U];
+		short val3 = (buffer[length - 2U] << 8) | buffer[length - 1U];
+		::fprintf(stdout, "Debug[%2d]: %.*s %d %d %d" EOL, length, length - 9U, buffer + 3U, val1, val2, val3);
+	} else if (buffer[2U] == MMDVM_DEBUG5) {
+		short val1 = (buffer[length - 8U] << 8) | buffer[length - 7U];
+		short val2 = (buffer[length - 6U] << 8) | buffer[length - 5U];
+		short val3 = (buffer[length - 4U] << 8) | buffer[length - 3U];
+		short val4 = (buffer[length - 2U] << 8) | buffer[length - 1U];
+		::fprintf(stdout, "Debug[%2d]: %.*s %d %d %d %d" EOL, length, length - 11U, buffer + 3U, val1, val2, val3, val4);
+	}
 }
 
 void CMMDVMCal::displayModem(const unsigned char *buffer, unsigned int length)
