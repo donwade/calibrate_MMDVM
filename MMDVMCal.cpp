@@ -84,6 +84,8 @@ const unsigned char MMDVM_FM_CONTROL  = 0x66U;
 const unsigned char MMDVM_FM_EOT      = 0x67U;
 
 const unsigned char MMDVM_ACK         = 0x70U;
+const unsigned char MMDVM_ACKv        = 0x71U;
+const unsigned char MMDVM_NACKv       = 0x72U;
 const unsigned char MMDVM_NAK         = 0x7FU;
 
 const unsigned char MMDVM_DEBUG1      = 0xF1U;
@@ -133,7 +135,7 @@ m_pttInvert(false),
 m_frequency(433000000U),
 m_startfrequency(433000000U),
 m_step(50U),
-m_power(100.0F),
+m_power(10.0F),
 m_mode(STATE_DSTARCAL),
 m_duplex(true),
 m_debug(false),
@@ -831,7 +833,9 @@ again:
 				switch (m_buffer[2U])
 				{
 					case MMDVM_ACK:
+					case MMDVM_ACKv:
 	 				case MMDVM_NAK:
+					case MMDVM_NACKv:
 					goto proc;
 					case MMDVM_DEBUG1:
 					case MMDVM_DEBUG2:
@@ -873,9 +877,17 @@ again:
 
 proc:
 	if (m_buffer[2U] == MMDVM_NAK) {
-		::fprintf(stdout, "*** Received a NAK to the %s command FROM the modem: %u" EOL, msg, (m_buffer[5] << 8) + m_buffer[4U]);
-		::fprintf(stdout, "*** Received a NAK to the %s command FROM the modem: %X %X" EOL, msg, m_buffer[5], m_buffer[4U]);
+		::fprintf(stdout, "NAK with value = %X %u" EOL, msg, m_buffer[5] << 8 + m_buffer[4U], m_buffer[5] << 8 + m_buffer[4U] );
 		return RTM_ERROR;
+	}
+	else if (m_buffer[2U] == MMDVM_NACKv)
+	{
+		::fprintf(stdout, "NAK \"%s\"" EOL, &m_buffer[3]);
+		return RTM_ERROR;
+	}
+	else if (m_buffer[2U] == MMDVM_ACKv)
+	{
+		::fprintf(stdout, "ACK \"%s\"" EOL, &m_buffer[3]);
 	}
 	else
 	{
