@@ -328,12 +328,12 @@ void CMMDVMCal::loop_MMDVM()
 				::fprintf(stderr, "Unknown command - %c (H/h for help)" EOL, c);
 				break;
 	    	}
-
-  	   	RESP_TYPE_MMDVM resp = WFR(__FUNCTION__);
+/*
+  	   	RESP_TYPE_MMDVM resp = getResponse(__FILE__,__LINE__);
 
 		if (resp == RTM_OK)
 			displayModem(m_buffer, m_length);
-
+*/
 		m_ber.clock();
 		sleep(5U);
 
@@ -503,11 +503,12 @@ void CMMDVMCal::loop_MMDVM_HS()
 				break;
 		}
 
-		RESP_TYPE_MMDVM resp = WFR(__FUNCTION__);
+/*
+		RESP_TYPE_MMDVM resp = getResponse(__FILE__,__LINE__);
 
 		if (resp == RTM_OK)
 			displayModem(m_buffer, m_length);
-
+*/
 		m_ber.clock();
 		sleep(5U);
 
@@ -572,7 +573,7 @@ bool CMMDVMCal::initModem()
 
 		for (unsigned int count = 0U; count < MAX_RESPONSES; count++) {
 			sleep(10U);
-			RESP_TYPE_MMDVM resp = getResponse();
+			RESP_TYPE_MMDVM resp = getResponse(__FILE__,__LINE__,__FUNCTION__);
 			if (resp == RTM_OK && m_buffer[2U] == MMDVM_GET_VERSION) {
 				m_version = m_buffer[3U];
 
@@ -719,10 +720,10 @@ bool CMMDVMCal::writeConfig1(float txlevel, bool debug)
 	if (ret <= 0)
 		return false;
 
-	RESP_TYPE_MMDVM resp = WFR(__FUNCTION__);
+	RESP_TYPE_MMDVM resp = getResponse(__FILE__,__LINE__,__FUNCTION__);
 
 	return resp == RTM_OK;
-			}
+}
 
 
 bool CMMDVMCal::writeConfig2(float txlevel, bool debug)
@@ -814,86 +815,7 @@ bool CMMDVMCal::writeConfig2(float txlevel, bool debug)
 	if (ret <= 0)
 		return false;
 
-	return WFR(__FUNCTION__) == RTM_OK;
-}
-RESP_TYPE_MMDVM CMMDVMCal::WFR(const char *msg)  // wait for response
-{
-	unsigned int count;
-	fprintf(stderr, "WFR called from %s" EOL, msg);
-again:
-	count = 0U;
-	RESP_TYPE_MMDVM resp;
-	do {
-		sleep(10U);
-
-		resp = getResponse();
-		switch (resp)
-		{
-			case RTM_OK:
-				switch (m_buffer[2U])
-				{
-					case MMDVM_ACK:
-					case MMDVM_ACKv:
-	 				case MMDVM_NAK:
-					case MMDVM_NACKv:
-					goto proc;
-					case MMDVM_DEBUG1:
-					case MMDVM_DEBUG2:
-					case MMDVM_DEBUG3:
-					case MMDVM_DEBUG4:
-					case MMDVM_DEBUG5:
-						displayDebug (m_buffer, m_length);
-						count = 0;
-					goto again;
-					default:
-			count++;
-						if (count >= MAX_RESPONSES)
-						{
-							::fprintf(stdout, "*** The MMDVM is not responding to the %s command" EOL, msg);
-							return RTM_TIMEOUT;
-						}
-					break;
-			}
-			break;
-			case RTM_UNEXPECTED:
-				::fprintf(stderr, "looking for start of packet, did not find it, found something else\n");
-				count = 0;
-				continue;
-				return RTM_UNEXPECTED;
-			case RTM_TIMEOUT:
-				::fprintf(stderr, "resp = RTM_TIMEOUT, resp =%d count=%d" EOL, resp, count);
-				return RTM_TIMEOUT;
-			break;
-			case RTM_ERROR:
-				::fprintf(stderr, "resp = RTM_ERROR, resp =%d count=%d" EOL, resp, count);
-				count++;
-			break;
-			default:
-				::fprintf(stderr, "resp = RTM_WTF!!!!, HALT resp =%d count=%d" EOL, resp, count);
-				count++;
-			break;
-		}
- 	}while(true); ////// while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
-
-proc:
-	if (m_buffer[2U] == MMDVM_NAK) {
-		::fprintf(stdout, "NAK with value = %X %u" EOL, msg, m_buffer[5] << 8 + m_buffer[4U], m_buffer[5] << 8 + m_buffer[4U] );
-		return RTM_ERROR;
-	}
-	else if (m_buffer[2U] == MMDVM_NACKv)
-	{
-		::fprintf(stdout, "NAK \"%s\"" EOL, &m_buffer[3]);
-		return RTM_ERROR;
-	}
-	else if (m_buffer[2U] == MMDVM_ACKv)
-	{
-		::fprintf(stdout, "ACK \"%s\"" EOL, &m_buffer[3]);
-	}
-	else
-	{
-	}
-
-	return RTM_OK;
+	return getResponse(__FILE__,__LINE__,__FUNCTION__) == RTM_OK;
 }
 
 bool CMMDVMCal::setRXInvert()
@@ -1808,17 +1730,18 @@ bool CMMDVMCal::setTransmit()
 	do {
 		sleep(10U);
 
-		resp = getResponse();
-		if (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK) {
+		resp = getResponse(__FILE__,__LINE__,__FUNCTION__);
+		if (resp == RTM_OK && !bAckNakFound(m_buffer)) {
 			count++;
 			if (count >= MAX_RESPONSES) {
 				::fprintf(stdout, "The MMDVM is not responding to the CAL_DATA command" EOL);
 				return false;
 			}
 		}
-	} while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
+		break;
+	} while(true);
 
-	if (resp == RTM_OK && m_buffer[2U] == MMDVM_NAK) {
+	if (resp == RTM_OK && bNakFound(m_buffer)) {
 		::fprintf(stdout, "Received a NAK to the CAL_DATA command from the modem: %u" EOL, m_buffer[4U]);
 		return false;
 	}
@@ -1921,6 +1844,18 @@ void CMMDVMCal::displayModem(const unsigned char *buffer, unsigned int length)
 	}
 }
 
+
+bool CMMDVMCal::bAckNakFound(const unsigned char *x_buffer)
+{
+    return  (x_buffer[2U] == MMDVM_ACK || x_buffer[2U] == MMDVM_ACKv && x_buffer[2U] == MMDVM_NAK && x_buffer[2U] == MMDVM_NACKv);
+}
+
+bool CMMDVMCal::bNakFound( const unsigned char *x_buffer)
+{
+    return  ( x_buffer[2U] == MMDVM_NAK && x_buffer[2U] == MMDVM_NACKv);
+}
+
+
 bool CMMDVMCal::setFrequency()
 {
 	unsigned char buffer[16U];
@@ -1955,17 +1890,18 @@ bool CMMDVMCal::setFrequency()
 	do {
 		sleep(10U);
 
-		resp = getResponse();
-		if (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK) {
+		resp = getResponse(__FILE__,__LINE__,__FUNCTION__);
+		if (resp == RTM_OK && !bAckNakFound(m_buffer)) {
 			count++;
 			if (count >= MAX_RESPONSES) {
 				::fprintf(stderr, "The MMDVM is not responding to the SET_FREQ command" EOL);
 				return false;
 			}
 		}
-	} while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
+		break;
+	} while (true);
 
-	if (resp == RTM_OK && m_buffer[2U] == MMDVM_NAK) {
+	if (resp == RTM_OK && bNakFound(m_buffer)) {
 		::fprintf(stderr, "Received a NAK to the SET_FREQ command from the modem, %u" EOL, m_buffer[4U]);
 		return false;
 	}
@@ -1988,17 +1924,18 @@ bool CMMDVMCal::getStatus()
 	do {
 		sleep(10U);
 
-		resp = getResponse();
-		if (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK) {
+		resp = getResponse(__FILE__,__LINE__,__FUNCTION__);
+		if (resp == RTM_OK && !bAckNakFound(m_buffer)) {
 			count++;
 			if (count >= MAX_RESPONSES) {
 				::fprintf(stderr, "The MMDVM is not responding to the GET_STATUS command" EOL);
 				return false;
 			}
 		}
-	} while (resp == RTM_OK && m_buffer[2U] != MMDVM_ACK && m_buffer[2U] != MMDVM_NAK);
+		break;
+	} while (true);
 
-	if (resp == RTM_OK && m_buffer[2U] == MMDVM_NAK) {
+	if (resp == RTM_OK && bNakFound(m_buffer)) {
 		::fprintf(stderr, "Received a NAK to the GET_STATUS command from the modem, %u" EOL, m_buffer[4U]);
 		return false;
 	}
@@ -2006,21 +1943,36 @@ bool CMMDVMCal::getStatus()
 	return true;
 }
 
-RESP_TYPE_MMDVM CMMDVMCal::getResponse()
+
+#define LINE ::fprintf(stderr, "%s:%d" EOL, __FILE__, __LINE__)
+
+RESP_TYPE_MMDVM CMMDVMCal::getResponse(const char*file, const unsigned int line, const char *function)
 {
+again2:
+#ifdef DWADE
+	::fprintf(stderr, "getResponse %s:%d %s" EOL, file, line, function);
+#endif
+
 	if (m_offset == 0U) {
 		// Get the start of the frame or nothing at all
 		int ret = m_serial.read(m_buffer + 0U, 1U);
 		if (ret < 0) {
+			//LINE;
 			::fprintf(stderr, "Error when reading from the modem" EOL);
 			return RTM_ERROR;
 		}
 
 		if (ret == 0)
+		{
+			//LINE;
 			return RTM_TIMEOUT;
+		}
 
 		if (m_buffer[0U] != MMDVM_FRAME_START)
+		{
+			//LINE;
 			return RTM_TIMEOUT;
+		}
 
 		m_offset = 1U;
 	}
@@ -2031,15 +1983,20 @@ RESP_TYPE_MMDVM CMMDVMCal::getResponse()
 		if (ret < 0) {
 			::fprintf(stderr, "Error when reading from the modem" EOL);
 			m_offset = 0U;
+			//LINE;
 			return RTM_ERROR;
 		}
 
 		if (ret == 0)
+		{
+			//LINE;
 			return RTM_TIMEOUT;
+		}
 
 		if (m_buffer[1U] >= 250U) {
 			::fprintf(stderr, "Invalid length received from the modem - %u" EOL, m_buffer[1U]);
 			m_offset = 0U;
+			//LINE;
 			return RTM_ERROR;
 		}
 
@@ -2053,48 +2010,95 @@ RESP_TYPE_MMDVM CMMDVMCal::getResponse()
 		if (ret < 0) {
 			::fprintf(stderr, "Error when reading from the modem" EOL);
 			m_offset = 0U;
+			//LINE;
 			return RTM_ERROR;
 		}
 
 		if (ret == 0)
+		{
+			//LINE;
 			return RTM_TIMEOUT;
+		}
 
 		m_offset = 3U;
 	}
 
-	if (m_offset >= 3U) {
-		// Use later two byte length field
-		if (m_length == 0U) {
+	if (m_offset >= 3U)
+	{
+		// Recover length of payload
+		if (m_length == 0U)
+		{
 			int ret = m_serial.read(m_buffer + 3U, 2U);
 			if (ret < 0) {
 				::fprintf(stderr, "Error when reading from the modem" EOL);
 				m_offset = 0U;
+				//LINE;
 				return RTM_ERROR;
 			}
 
 			if (ret == 0)
+			{
+				//LINE;
 				return RTM_TIMEOUT;
-
+			}
 			m_length = (m_buffer[3U] << 8) | m_buffer[4U];
 			m_offset = 5U;
 		}
 
-		while (m_offset < m_length) {
+		// suck in remainder of data payload
+		while (m_offset < m_length)
+		{
 			int ret = m_serial.read(m_buffer + m_offset, m_length - m_offset);
-			if (ret < 0) {
+			if (ret < 0)
+			{
 				::fprintf(stderr, "Error when reading from the modem" EOL);
+				//LINE;
 				m_offset = 0U;
 				return RTM_ERROR;
 			}
 
 			if (ret == 0)
+			{
+				//LINE;
 				return RTM_TIMEOUT;
+			}
 
 			if (ret > 0)
 				m_offset += ret;
 		}
+
+#ifdef DWADE
+		::fprintf(stderr, "MMDVM  'frmstart'=%02X plen=%02X type=%02X [3]=%02X [4]=%02X dlen=%d " EOL,
+				m_buffer[0], m_buffer[1], m_buffer[2], m_buffer[3],
+				m_buffer[4],  (m_buffer[3] << 8) | m_buffer[4]);
+#endif
+
+		// all data read for packet length
+		switch (m_buffer[2U])
+		{
+			// too many to verify
+			//case MMDVM_ACK:
+			//case MMDVM_ACKv:
+			//case MMDVM_NAK:
+			//case MMDVM_NACKv:
+			//goto proc2;
+
+			case MMDVM_DEBUG1:
+			case MMDVM_DEBUG2:
+			case MMDVM_DEBUG3:
+			case MMDVM_DEBUG4:
+			case MMDVM_DEBUG5:
+				displayDebug (m_buffer, m_length);
+				m_offset = 0;
+			goto again2;
+
+			default:
+			break;
+		}
+
 	}
 
+proc2:
 	m_offset = 0;
 
 	return RTM_OK;

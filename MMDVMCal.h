@@ -156,12 +156,15 @@ private:
 	bool initModem();
 	void displayModem(const unsigned char* buffer, unsigned int length);
     void displayDebug(const unsigned char* buffer, unsigned int length);
-    RESP_TYPE_MMDVM WFR(const char *msg);   // wait for response
 	bool writeConfig1(float txlevel, bool debug);
 	bool writeConfig2(float txlevel, bool debug);
 	void sleep(unsigned int ms);
+    bool bAckNakFound( const unsigned char *x_buffer);
+    bool bNakFound( const unsigned char *x_buffer);
+
 	bool setFrequency();
 	bool getStatus();
+    RESP_TYPE_MMDVM getResponse(const char*file, const unsigned int line, const char *function);
 
 	RESP_TYPE_MMDVM getResponse();
 };
