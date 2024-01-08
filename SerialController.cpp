@@ -506,12 +506,35 @@ int CSerialController::read(unsigned char* buffer, unsigned int length)
             else
             {
             	::fprintf(stderr, "TIMEOUT: requested %d bytes only got %d bytes" EOL, length, offset);
+            	return -length;
             }
 
         }
     }
     return length;
 }
+
+
+
+bool CSerialController::dataReady(void)
+{
+	assert(m_fd != -1);
+
+	fd_set fds;
+	FD_ZERO(&fds);
+	FD_SET(m_fd, &fds);
+	int n;
+
+	struct timeval tv;
+    tv.tv_sec  = 0;
+    tv.tv_usec = 1;
+
+    // do non-blocking read while waiting FIRST BYTE of reading a packet.
+    n = ::select(m_fd + 1, &fds, NULL, NULL, &tv);
+
+	return (n > 0);
+}
+
 
 bool CSerialController::canWrite(){
 #if defined(__APPLE__)

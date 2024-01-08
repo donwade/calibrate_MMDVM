@@ -161,7 +161,7 @@ private:
 	void sleep(unsigned int ms);
     bool bAckNakFound( const unsigned char *x_buffer);
     bool bNakFound( const unsigned char *x_buffer);
-
+    bool dataReady(void);
 	bool setFrequency();
 	bool getStatus();
     RESP_TYPE_MMDVM getResponse(const char*file, const unsigned int line, const char *function);

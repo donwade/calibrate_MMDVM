@@ -9,7 +9,7 @@ set -e
 
 TGT_ARCH=arm-linux-gnueabihf
 if [ "$1" == "--Debug" ]; then
-    CFLAGS='-O0 -ggdb '
+    CFLAGS='-O0 -ggdb -DDWADE '
     LDFLAGS="-Wl,--verbose"
 fi
 

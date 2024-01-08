@@ -50,6 +50,7 @@ public:
 
 	virtual bool open();
 
+    virtual bool dataReady(void);
 	virtual int read(unsigned char* buffer, unsigned int length);
 
 	virtual int write(const unsigned char* buffer, unsigned int length);
@@ -68,12 +69,14 @@ private:
 	HANDLE         m_handle;
 #else
 	int            m_fd;
+
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
 	int readNonblock(unsigned char* buffer, unsigned int length);
 #else
 	bool canWrite();
+
 #endif
 };
 

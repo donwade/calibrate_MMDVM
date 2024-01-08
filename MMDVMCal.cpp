@@ -120,6 +120,10 @@ int main(int argc, char** argv)
 	return cal.run();
 }
 
+//#define BASE_FREQUENCY 867137500U //ott ops
+//#define BASE_FREQUENCY 142725000U //ott opp
+#define BASE_FREQUENCY   432000000U //ott ham
+
 CMMDVMCal::CMMDVMCal(const std::string& port, SERIAL_SPEED speed) :
 m_serial(port, speed),
 m_console(),
@@ -132,8 +136,8 @@ m_rxDCOffset(0),
 m_txInvert(false),
 m_rxInvert(false),
 m_pttInvert(false),
-m_frequency(433000000U),
-m_startfrequency(433000000U),
+m_frequency(BASE_FREQUENCY),
+m_startfrequency(BASE_FREQUENCY),
 m_step(50U),
 m_power(10.0F),
 m_mode(STATE_DSTARCAL),
@@ -233,7 +237,7 @@ void CMMDVMCal::loop_MMDVM()
 			case 'r':
 				setRXLevel(-1);
 				break;
-			case ' ':
+			case '^':			//not spacebar anymore
 				setTransmit();
 				break;
 			case 'I':
@@ -382,13 +386,13 @@ void CMMDVMCal::displayHelp_MMDVM()
 	::fprintf(stdout, "    e        M17 Preamble Test Pattern" EOL);
 	::fprintf(stdout, "    S/s      RSSI Mode" EOL);
 	::fprintf(stdout, "    V/v      Display version of MMDVMCal" EOL);
-	::fprintf(stdout, "    <space>  Toggle transmit" EOL);
+	::fprintf(stdout, "    ^        Toggle transmit" EOL);
 }
 
 void CMMDVMCal::loop_MMDVM_HS()
 {
 	m_mode = STATE_DMRCAL;
-	unsigned int counter = 0U;
+	unsigned int counter;
 
 	setFrequency();
 
@@ -406,118 +410,125 @@ void CMMDVMCal::loop_MMDVM_HS()
 	bool end = false;
 	while (!end) {
 		int c;
-     	while ( (c = m_console.getChar()) < 0) c++;  // do nothing.
-		switch (c) {
-			case 'H':
-			case 'h':
-				displayHelp_MMDVM_HS();
-				break;
-			case 'W':
-			case 'w':
-				setDebug(c);
-				break;
-			case 'C':
-			case 'c':
-				setCarrier();
-				break;
-			case 'E':
-			case 'e':
-				setEnterFreq();
-				break;
-			case 'T':
-				setTXLevel(1);
-				break;
-			case 't':
-				setTXLevel(-1);
-				break;
-			case 'F':
-				setFreq(1);
-				break;
-			case 'f':
-				setFreq(-1);
-				break;
-			case 'Z':
-			case 'z':
-				setStepFreq();
-				break;
-			case 'P':
-				setPower(1);
-				break;
-			case 'p':
-				setPower(-1);
-				break;
-			case ' ':
-				setTransmit();
-				break;
-			case 'Q':
-			case 'q':
-				end = true;
-				break;
-			case 'V':
-			case 'v':
-				::fprintf(stdout, VERSION EOL);
-				break;
-			case 'D':
-			case 'd':
-				setDMRDeviation();
-				break;
-			case 'M':
-			case 'm':
-				setDMRDMO1K();
-				break;
-			case 'K':
-			case 'k':
-				setDSTARBER_FEC();
-				break;
-			case 'b':
-				setDMRBER_FEC();
-				break;
-			case 'B':
-				setDMRBER_1K();
-				break;
-			case 'J':
-				setYSFBER_FEC();
-				break;
-			case 'j':
-				setP25BER_FEC();
-				break;
-			case 'n':
-				setNXDNBER_FEC();
-				break;
-			case 'g':
-				setPOCSAGCal();
-				break;
-			case 'S':
-			case 's':
-				setRSSI();
-				break;
-			case 'I':
-			case 'i':
-				setIntCal();
-				break;
-			case -1:
-			case  0:
-				break;
-			default:
-				::fprintf(stderr, "Unknown command - %c (H/h for help)" EOL, c);
-				break;
+     	c = m_console.getChar();
+
+     	if ( c > 0)
+     	{
+			switch (c) {
+				case 'H':
+				case 'h':
+					displayHelp_MMDVM_HS();
+					break;
+				case 'W':
+				case 'w':
+					setDebug(c);
+					break;
+				case 'C':
+				case 'c':
+					setCarrier();
+					break;
+				case 'E':
+				case 'e':
+					setEnterFreq();
+					break;
+				case 'T':
+					setTXLevel(1);
+					break;
+				case 't':
+					setTXLevel(-1);
+					break;
+				case 'F':
+					setFreq(1);
+					break;
+				case 'f':
+					setFreq(-1);
+					break;
+				case 'Z':
+				case 'z':
+					setStepFreq();
+					break;
+				case 'P':
+					setPower(1);
+					break;
+				case 'p':
+					setPower(-1);
+					break;
+				case '^':
+					setTransmit();
+					break;
+				case 'Q':
+				case 'q':
+					end = true;
+					break;
+				case 'V':
+				case 'v':
+					::fprintf(stdout, VERSION EOL);
+					break;
+				case 'D':
+				case 'd':
+					setDMRDeviation();
+					break;
+				case 'M':
+				case 'm':
+					setDMRDMO1K();
+					break;
+				case 'K':
+				case 'k':
+					setDSTARBER_FEC();
+					break;
+				case 'b':
+					setDMRBER_FEC();
+					break;
+				case 'B':
+					setDMRBER_1K();
+					break;
+				case 'J':
+					setYSFBER_FEC();
+					break;
+				case 'j':
+					setP25BER_FEC();
+					break;
+				case 'n':
+					setNXDNBER_FEC();
+					break;
+				case 'g':
+					setPOCSAGCal();
+					break;
+				case 'S':
+				case 's':
+					setRSSI();
+					break;
+				case 'I':
+				case 'i':
+					setIntCal();
+					break;
+				case -1:
+				case  0:
+					break;
+				default:
+					::fprintf(stderr, "Unknown command - %c (H/h for help)" EOL, c);
+					break;
+			}
 		}
 
-/*
-		RESP_TYPE_MMDVM resp = getResponse(__FILE__,__LINE__);
+		// get unsolicited messages
+		if (dataReady()) getResponse(__FILE__,__LINE__,__FUNCTION__);
 
-		if (resp == RTM_OK)
-			displayModem(m_buffer, m_length);
-*/
+//		if (resp == RTM_OK)
+//			displayModem(m_buffer, m_length);
+
 		m_ber.clock();
+
 		sleep(5U);
 
-		if (counter >= 200U) {
+		if (counter >= 100U) {
 			if (getStatus())
+			{
 	    		displayModem(m_buffer, m_length);
+	    	}
 			counter = 0U;
 		}
-
+		//::fprintf(stderr, ".");
 		counter++;
 	}
 }
@@ -549,7 +560,7 @@ void CMMDVMCal::displayHelp_MMDVM_HS()
 	::fprintf(stdout, "    S/s      RSSI Mode" EOL);
 	::fprintf(stdout, "    I/i      Interrupt Counter Mode" EOL);
 	::fprintf(stdout, "    V/v      Display version of MMDVMCal" EOL);
-	::fprintf(stdout, "    <space>  Toggle transmit" EOL);
+	::fprintf(stdout, "    ^        Toggle transmit" EOL);
 }
 
 bool CMMDVMCal::initModem()
@@ -1855,6 +1866,11 @@ bool CMMDVMCal::bNakFound( const unsigned char *x_buffer)
     return  ( x_buffer[2U] == MMDVM_NAK && x_buffer[2U] == MMDVM_NACKv);
 }
 
+bool CMMDVMCal::dataReady(void)
+{
+    return  m_serial.dataReady();
+}
+
 
 bool CMMDVMCal::setFrequency()
 {
@@ -2049,6 +2065,20 @@ again2:
 		while (m_offset < m_length)
 		{
 			int ret = m_serial.read(m_buffer + m_offset, m_length - m_offset);
+
+			// large negative value may indicate 'length' of bytes recieved.
+			if (ret < -1)
+			{
+            	for (int i = 0; i < -ret + 5; i++)
+            	{
+            		::fprintf(stderr, "%02X ", m_buffer[i]);
+            	}
+            	::fprintf(stderr, EOL);
+            	m_offset = 0U;
+            	return RTM_TIMEOUT;
+			}
+
+			// simple read failure.
 			if (ret < 0)
 			{
 				::fprintf(stderr, "Error when reading from the modem" EOL);
