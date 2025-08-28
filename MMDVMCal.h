@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016,2017,2020,2021 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2017,2020,2021,2025 by Jonathan Naylor G4KLX
  *   Copyright (C) 2017,2018 by Andy Uribe CA6JAU
  *   Copyright (C) 2018 by Bryan Biedenkapp N2PLL
  *
@@ -47,9 +47,7 @@ enum MMDVM_STATE {
   STATE_P25       = 4,
   STATE_NXDN      = 5,
   STATE_POCSAG    = 6,
-  STATE_M17       = 7,
   STATE_FM        = 10,
-  STATE_AX25      = 11,
   STATE_NXDNCAL1K = 91,
   STATE_DMRDMO1K  = 92,
   STATE_P25CAL1K  = 93,
@@ -65,8 +63,7 @@ enum MMDVM_STATE {
   STATE_FMCAL15K  = 104,
   STATE_FMCAL20K  = 105,
   STATE_FMCAL25K  = 106,
-  STATE_FMCAL30K  = 107,
-  STATE_M17CAL    = 108
+  STATE_FMCAL30K  = 107
 };
 
 class CMMDVMCal {
@@ -107,10 +104,8 @@ private:
 	bool              m_ysfEnabled;
 	bool              m_p25Enabled;
 	bool              m_nxdnEnabled;
-	bool              m_m17Enabled;
 	bool              m_pocsagEnabled;
 	bool              m_fmEnabled;
-	bool              m_ax25Enabled;
 
 	void displayHelp_MMDVM();
 	void displayHelp_MMDVM_HS();
@@ -146,7 +141,6 @@ private:
 	bool setNXDNBER_FEC();
 	bool setDSTAR();
 	bool setRSSI();
-	bool setM17Cal();
 	bool setIntCal();
 
 	bool initModem();
